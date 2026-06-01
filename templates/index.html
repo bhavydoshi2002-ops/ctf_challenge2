@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LinkPreview Pro™</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    min-height: 100vh;
+    background: #0d1117;
+    color: #e6edf3;
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 1.5rem;
+  }
+  .card {
+    width: 100%;
+    max-width: 600px;
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 14px;
+    padding: 2rem;
+    box-shadow: 0 8px 32px rgba(0,0,0,.4);
+  }
+  .logo     { font-size: 1.5rem; font-weight: 700; color: #a371f7; margin-bottom: .2rem; }
+  .tagline  { font-size: 13px; color: #8b949e; margin-bottom: 1.8rem; }
+  label     { display: block; font-size: 13px; color: #8b949e; margin-bottom: 5px; }
+  .row      { display: flex; gap: 8px; margin-bottom: .8rem; }
+  input {
+    flex: 1;
+    background: #0d1117;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    color: #e6edf3;
+    font-size: 13px;
+    padding: 10px 13px;
+    outline: none;
+    font-family: 'Courier New', monospace;
+    transition: border-color .15s;
+  }
+  input:focus { border-color: #a371f7; }
+  .btn {
+    background: #6e40c9;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    font-family: inherit;
+    white-space: nowrap;
+    transition: background .15s;
+  }
+  .btn:hover  { background: #8957e5; }
+  .btn:active { background: #5a32a3; }
+  .spinner { display: none; color: #8b949e; font-size: 13px; margin-bottom: .5rem; }
+  .result-wrap {
+    display: none;
+    border: 1px solid #30363d;
+    border-radius: 10px;
+    overflow: hidden;
+    margin-top: .8rem;
+  }
+  .result-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 7px 14px;
+    background: #1c2128;
+    border-bottom: 1px solid #21262d;
+  }
+  .status-ok  { font-size: 12px; font-weight: 700; color: #56d364; }
+  .status-err { font-size: 12px; font-weight: 700; color: #f85149; }
+  .ct { font-size: 11px; font-family: monospace; color: #484f58; }
+  pre {
+    margin: 0;
+    padding: 14px;
+    font-family: 'Courier New', monospace;
+    font-size: 12.5px;
+    color: #e6edf3;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 300px;
+    overflow-y: auto;
+    background: #0d1117;
+    line-height: 1.65;
+  }
+  pre.flag-found { color: #39ff14; background: #0a1a0a; }
+  .tip {
+    margin-top: 1.2rem;
+    padding: 10px 14px;
+    background: #1c2128;
+    border: 1px solid #30363d;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #8b949e;
+    line-height: 1.6;
+  }
+  .tip span { color: #a371f7; font-weight: 600; }
+  .divider  { border: none; border-top: 1px solid #21262d; margin: 1.4rem 0; }
+  .api-hint { font-size: 12px; color: #484f58; font-family: 'Courier New', monospace; line-height: 2; }
+  .hl { color: #a371f7; }
+
+  /* history */
+  .hist-wrap { margin-top: 1rem; }
+  .hist-label { font-size: 11px; color: #484f58; margin-bottom: 6px; text-transform: uppercase; letter-spacing: .06em; }
+  .hist-item  { font-size: 12px; font-family: monospace; color: #58a6ff; cursor: pointer; padding: 3px 0;
+                border-bottom: 1px solid #21262d; transition: color .1s; }
+  .hist-item:hover { color: #a371f7; }
+  .hist-item:last-child { border: none; }
+</style>
+</head>
+<body>
+<div class="card">
+  <div class="logo">🔗 LinkPreview Pro™</div>
+  <div class="tagline">Enter any URL — our servers fetch and preview it for you instantly.</div>
+
+  <label for="url-in">URL to fetch</label>
+  <div class="row">
+    <input type="text" id="url-in" placeholder="https://example.com" autocomplete="off" spellcheck="false">
+    <button class="btn" onclick="doFetch()">Fetch</button>
+  </div>
+
+  <div class="spinner" id="spinner">⏳ Server is fetching the URL...</div>
+
+  <div class="result-wrap" id="result-wrap">
+    <div class="result-head">
+      <span id="status-txt" class="status-ok">200 OK</span>
+      <span id="ct-txt" class="ct">text/html</span>
+    </div>
+    <pre id="result-pre"></pre>
+  </div>
+
+  <div class="tip">
+    <span>How it works:</span> You give a URL → our backend server fetches it using Python requests → response is shown here. Works for any public URL!
+  </div>
+
+  <div class="hist-wrap" id="hist-wrap" style="display:none">
+    <div class="hist-label">Recent fetches</div>
+    <div id="hist-list"></div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="api-hint">
+    <span class="hl">POST</span> /preview<br>
+    Content-Type: application/json<br>
+    { "url": "<span class="hl">https://...</span>" }
+  </div>
+</div>
+
+<script>
+const history = [];
+
+async function doFetch() {
+  const url     = document.getElementById('url-in').value.trim();
+  const spinner = document.getElementById('spinner');
+  const wrap    = document.getElementById('result-wrap');
+
+  if (!url) { alert('Enter a URL first!'); return; }
+
+  spinner.style.display = 'block';
+  wrap.style.display    = 'none';
+
+  try {
+    const res  = await fetch('/preview', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    spinner.style.display = 'none';
+
+    const statusEl = document.getElementById('status-txt');
+    const ctEl     = document.getElementById('ct-txt');
+    const preEl    = document.getElementById('result-pre');
+
+    if (data.error) {
+      statusEl.textContent = 'Error';
+      statusEl.className   = 'status-err';
+      ctEl.textContent     = '';
+      preEl.textContent    = data.error;
+      preEl.className      = '';
+    } else {
+      statusEl.textContent = `${data.status} ${data.status === 200 ? 'OK' : 'ERROR'}`;
+      statusEl.className   = data.status === 200 ? 'status-ok' : 'status-err';
+      ctEl.textContent     = data.content_type;
+
+      const isFlag = data.preview.includes('CTF{');
+      preEl.textContent = data.preview;
+      preEl.className   = isFlag ? 'flag-found' : '';
+    }
+
+    wrap.style.display = 'block';
+    addHistory(url);
+
+  } catch (e) {
+    spinner.style.display = 'none';
+    alert('Network error: ' + e.message);
+  }
+}
+
+function addHistory(url) {
+  if (!history.includes(url)) {
+    history.unshift(url);
+    if (history.length > 6) history.pop();
+  }
+  const wrap = document.getElementById('hist-wrap');
+  const list = document.getElementById('hist-list');
+  wrap.style.display = 'block';
+  list.innerHTML = history.map(u =>
+    `<div class="hist-item" onclick="setUrl('${u.replace(/'/g,"\\'")}')">&rarr; ${u}</div>`
+  ).join('');
+}
+
+function setUrl(url) {
+  document.getElementById('url-in').value = url;
+}
+
+document.getElementById('url-in').addEventListener('keydown', e => {
+  if (e.key === 'Enter') doFetch();
+});
+</script>
+</body>
+</html>
